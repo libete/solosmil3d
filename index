@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>MR-1 · Fluxo de Mecanismo Visível · Visualização 3D</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Segoe UI', 'Inter', system-ui, sans-serif;
+        }
+        .info-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(15, 20, 10, 0.8);
+            backdrop-filter: blur(12px);
+            border-radius: 24px;
+            padding: 16px 22px;
+            color: #fef5e0;
+            border-left: 5px solid #e0a82b;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+            pointer-events: none;
+            z-index: 10;
+            max-width: 300px;
+        }
+        .info-panel h1 {
+            margin: 0 0 6px;
+            font-size: 1.7rem;
+            background: linear-gradient(135deg, #FFF6CF, #EBC76E);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        .info-panel .sub {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 12px;
+            color: #dbb45c;
+        }
+        .process-flow {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.75);
+            backdrop-filter: blur(8px);
+            border-radius: 32px;
+            padding: 12px 20px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-around;
+            z-index: 10;
+            pointer-events: none;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: #f9e7b3;
+            border-top: 1px solid #e6b341;
+        }
+        .step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+            min-width: 70px;
+        }
+        .step i {
+            font-size: 1.2rem;
+            margin-bottom: 4px;
+            color: #ffc857;
+        }
+        .output-card-right {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(12px);
+            border-radius: 20px;
+            padding: 14px;
+            width: 220px;
+            border-right: 4px solid #f0b341;
+            pointer-events: none;
+            z-index: 10;
+            color: #fcf2da;
+            font-size: 0.75rem;
+        }
+        .controls-note {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.5);
+            border-radius: 20px;
+            padding: 6px 12px;
+            font-size: 0.7rem;
+            color: #ccc;
+            pointer-events: none;
+        }
+        @media (max-width: 700px) {
+            .info-panel { max-width: 220px; padding: 10px; }
+            .output-card-right { width: 180px; }
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <div class="info-panel">
+        <h1>MR-1 · FLUXO VISÍVEL</h1>
+        <div class="sub">UNIDADE MÓVEL · BENEFICIAMENTO CONTÍNUO</div>
+        <div style="font-size:0.75rem; opacity:0.9;">🚜 Mecanismo exposto: recepção → separação → debulha → limpeza → remoção</div>
+    </div>
+    <div class="output-card-right">
+        <h3 style="margin:0 0 8px; font-size:0.9rem;"><i class="fas fa-chart-simple"></i> SAÍDAS</h3>
+        <div><i class="fas fa-wheat-awn" style="color:#f5b642;"></i> Grãos recuperados</div>
+        <div><i class="fas fa-tree" style="color:#bd8a4a;"></i> Resíduos grossos</div>
+        <div><i class="fas fa-dust" style="color:#b57c3c;"></i> Impurezas leves</div>
+    </div>
+    <div class="process-flow">
+        <div class="step"><i class="fas fa-arrow-down"></i><span>1. RECEPÇÃO</span></div>
+        <div class="step"><i class="fas fa-grid-2"></i><span>2. SEPARAÇÃO</span></div>
+        <div class="step"><i class="fas fa-gear"></i><span>3. DEBULHA</span></div>
+        <div class="step"><i class="fas fa-wind"></i><span>4. LIMPEZA</span></div>
+        <div class="step"><i class="fas fa-bolt"></i><span>5. REMOÇÃO</span></div>
+    </div>
+    <div class="controls-note">
+        <i class="fas fa-mouse"></i> Arraste para girar · Scroll zoom
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.128.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.128.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+        // --- Cena e Câmera com ângulo que revela todo o fluxo ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0e1a0e);
+        scene.fog = new THREE.FogExp2(0x0e1a0e, 0.01);
+        
+        const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(5.5, 3.2, 6.5);
+        camera.lookAt(0.2, 0.9, 0);
+        
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        document.body.appendChild(renderer.domElement);
+        
+        const labelRenderer = new CSS2DRenderer();
+        labelRenderer.setSize(window.innerWidth, window.innerHeight);
+        labelRenderer.domElement.style.position = 'absolute';
+        labelRenderer.domElement.style.top = '0';
+        labelRenderer.domElement.style.left = '0';
+        labelRenderer.domElement.style.pointerEvents = 'none';
+        document.body.appendChild(labelRenderer.domElement);
+        
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 0.8;
+        controls.enableZoom = true;
+        controls.target.set(0.2, 0.9, 0);
+        controls.maxPolarAngle = Math.PI / 2.2;
+        
+        // --- Iluminação ---
+        scene.add(new THREE.AmbientLight(0x404830, 0.6));
+        const sunLight = new THREE.DirectionalLight(0xfff0cf, 1.2);
+        sunLight.position.set(5, 6, 4);
+        sunLight.castShadow = true;
+        sunLight.receiveShadow = true;
+        sunLight.shadow.mapSize.width = 1024;
+        sunLight.shadow.mapSize.height = 1024;
+        sunLight.shadow.camera.near = 0.5;
+        sunLight.shadow.camera.far = 14;
+        sunLight.shadow.camera.left = -6;
+        sunLight.shadow.camera.right = 6;
+        sunLight.shadow.camera.top = 6;
+        sunLight.shadow.camera.bottom = -6;
+        scene.add(sunLight);
+        
+        scene.add(new THREE.PointLight(0xccaa66, 0.5, 10, 0, 0, 2));
+        scene.add(new THREE.PointLight(0x886633, 0.3, 8, -2, 1, -2));
+        
+        // --- Piso ---
+        const ground = new THREE.Mesh(
+            new THREE.PlaneGeometry(14, 14),
+            new THREE.MeshStandardMaterial({ color: 0x3a5530, roughness: 0.9 })
+        );
+        ground.rotation.x = -Math.PI / 2;
+        ground.position.y = -0.35;
+        ground.receiveShadow = true;
+        scene.add(ground);
+        
+        const grid = new THREE.GridHelper(16, 24, 0xaabb88, 0x5a7a4a);
+        grid.position.y = -0.3;
+        scene.add(grid);
+        
+        // --- Construção da Máquina (mesma estrutura, cores levemente mais contrastantes) ---
+        const mr1 = new THREE.Group();
+        
+        // Chassi
+        const chassis = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.28, 2.0), 
+            new THREE.MeshStandardMaterial({ color: 0x4e5e3a, roughness: 0.5, metalness: 0.4 }));
+        chassis.position.y = 0.0;
+        chassis.castShadow = true;
+        chassis.receiveShadow = true;
+        mr1.add(chassis);
+        
+        // Corpo central
+        const body = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.9, 1.7),
+            new THREE.MeshStandardMaterial({ color: 0x6d7a4e, roughness: 0.5 }));
+        body.position.set(0.1, 0.58, 0);
+        body.castShadow = true;
+        body.receiveShadow = true;
+        mr1.add(body);
+        
+        // Moega (recepção)
+        const hopperBase = new THREE.Mesh(new THREE.CylinderGeometry(1.0, 1.3, 0.7, 12),
+            new THREE.MeshStandardMaterial({ color: 0xb88a4a, roughness: 0.3 }));
+        hopperBase.position.set(1.45, 0.98, 0);
+        hopperBase.castShadow = true;
+        mr1.add(hopperBase);
+        
+        const hopperTop = new THREE.Mesh(new THREE.CylinderGeometry(0.65, 1.0, 0.5, 12),
+            new THREE.MeshStandardMaterial({ color: 0xd6a04e, roughness: 0.25 }));
+        hopperTop.position.set(1.45, 1.35, 0);
+        hopperTop.castShadow = true;
+        mr1.add(hopperTop);
+        
+        // Grelha de separação
+        for (let i = -0.9; i <= 0.9; i+=0.35) {
+            const bar = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.06, 1.5),
+                new THREE.MeshStandardMaterial({ color: 0xbbaa7a, metalness: 0.6 }));
+            bar.position.set(i, 1.08, 0);
+            bar.castShadow = true;
+            mr1.add(bar);
+        }
+        
+        // Cilindro debulhador
+        const cylinder = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 1.6, 24),
+            new THREE.MeshStandardMaterial({ color: 0x8f7a55, metalness: 0.7, roughness: 0.4 }));
+        cylinder.position.set(-0.15, 0.82, 0);
+        cylinder.castShadow = true;
+        mr1.add(cylinder);
+        
+        const teeth = [];
+        for (let a = 0; a < Math.PI*2; a+=Math.PI/6) {
+            for (let z = -0.65; z <= 0.65; z+=0.65) {
+                const tooth = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 0.24, 6),
+                    new THREE.MeshStandardMaterial({ color: 0xcdb38b }));
+                tooth.position.set(-0.15 + Math.cos(a)*0.5, 0.82 + Math.sin(a)*0.38, z);
+                tooth.castShadow = true;
+                mr1.add(tooth);
+                teeth.push(tooth);
+            }
+        }
+        
+        // Ventilador (limpeza)
+        const fanCase = new THREE.Mesh(new THREE.CylinderGeometry(0.65, 0.65, 0.28, 16),
+            new THREE.MeshStandardMaterial({ color: 0x9a7c54, metalness: 0.5 }));
+        fanCase.position.set(-1.35, 0.72, 0.9);
+        fanCase.castShadow = true;
+        mr1.add(fanCase);
+        
+        const blades = new THREE.Group();
+        for (let i=0; i<4; i++) {
+            const b = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.6, 0.1), 
+                new THREE.MeshStandardMaterial({ color: 0xe8c07a, metalness: 0.8 }));
+            b.rotation.z = i * Math.PI/2;
+            blades.add(b);
+        }
+        blades.position.set(-1.35, 0.72, 0.9);
+        mr1.add(blades);
+        
+        // Duto de remoção
+        const duct = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.35, 0.95, 8),
+            new THREE.MeshStandardMaterial({ color: 0xaa7c48 }));
+        duct.position.set(-1.6, 0.88, -0.5);
+        duct.rotation.z = 0.35;
+        duct.rotation.x = 0.25;
+        duct.castShadow = true;
+        mr1.add(duct);
+        
+        // Saída de resíduos
+        const chute = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.22, 0.8),
+            new THREE.MeshStandardMaterial({ color: 0x7a6138 }));
+        chute.position.set(1.2, 0.38, 1.2);
+        chute.castShadow = true;
+        mr1.add(chute);
+        
+        // Tanque de grãos
+        const tank = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.55, 1.1),
+            new THREE.MeshStandardMaterial({ color: 0xd4b05a, emissive: 0x332010, emissiveIntensity: 0.15 }));
+        tank.position.set(-0.55, 0.22, -1.2);
+        tank.castShadow = true;
+        mr1.add(tank);
+        
+        // Rodas
+        const wheelMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.7 });
+        const rimMat = new THREE.MeshStandardMaterial({ color: 0xc0aa88, metalness: 0.7 });
+        function wheel(x, z) {
+            const t = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.6, 24), wheelMat);
+            t.rotation.z = Math.PI/2;
+            t.position.set(x, 0.18, z);
+            t.castShadow = true;
+            mr1.add(t);
+            const r = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.62, 12), rimMat);
+            r.rotation.z = Math.PI/2;
+            r.position.set(x, 0.18, z);
+            r.castShadow = true;
+            mr1.add(r);
+        }
+        wheel(1.15, -1.35);
+        wheel(1.15, 1.35);
+        wheel(-1.05, -1.35);
+        wheel(-1.05, 1.35);
+        
+        // Engate
+        const bar = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.14, 0.4),
+            new THREE.MeshStandardMaterial({ color: 0x6a5a3e, metalness: 0.4 }));
+        bar.position.set(2.4, 0.25, 0);
+        bar.castShadow = true;
+        mr1.add(bar);
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.08, 12, 24),
+            new THREE.MeshStandardMaterial({ color: 0xdd9944, metalness: 0.9 }));
+        ring.rotation.x = Math.PI/2;
+        ring.position.set(3.2, 0.28, 0);
+        mr1.add(ring);
+        
+        scene.add(mr1);
+        
+        // --- Partículas (impurezas leves) ---
+        const partGeo = new THREE.BufferGeometry();
+        const partCount = 200;
+        const pos = new Float32Array(partCount * 3);
+        for (let i=0; i<partCount; i++) {
+            pos[i*3] = -1.6 + (Math.random()-0.5)*0.8;
+            pos[i*3+1] = 0.9 + Math.random()*0.6;
+            pos[i*3+2] = -0.8 + (Math.random()-0.5)*1.4;
+        }
+        partGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+        const partMat = new THREE.PointsMaterial({ color: 0xeec07a, size: 0.05, transparent: true });
+        const parts = new THREE.Points(partGeo, partMat);
+        scene.add(parts);
+        const vels = Array(partCount).fill().map(() => ({
+            x: (Math.random()-0.5)*0.012, y: Math.random()*0.025+0.012, z: (Math.random()-0.5)*0.015-0.025
+        }));
+        
+        // Resíduos grossos
+        const cGeo = new THREE.BufferGeometry();
+        const cCount = 100;
+        const cPos = new Float32Array(cCount * 3);
+        for (let i=0; i<cCount; i++) {
+            cPos[i*3] = 1.3 + Math.random()*0.4;
+            cPos[i*3+1] = 0.45 + Math.random()*0.3;
+            cPos[i*3+2] = 1.3 + Math.random()*0.6;
+        }
+        cGeo.setAttribute('position', new THREE.BufferAttribute(cPos, 3));
+        const cPoints = new THREE.Points(cGeo, new THREE.PointsMaterial({ color: 0xb5854a, size: 0.045 }));
+        scene.add(cPoints);
+        
+        // --- ETIQUETAS CSS2D REPOSICIONADAS FORA DO MECANISMO ---
+        function createLabel(text, color, pos, fontSize='0.85rem') {
+            const d = document.createElement('div');
+            d.textContent = text;
+            d.style.background = '#141a10dd';
+            d.style.color = color;
+            d.style.padding = '5px 16px';
+            d.style.borderRadius = '30px';
+            d.style.borderLeft = `4px solid ${color}`;
+            d.style.fontSize = fontSize;
+            d.style.fontWeight = 'bold';
+            d.style.backdropFilter = 'blur(6px)';
+            d.style.whiteSpace = 'nowrap';
+            d.style.boxShadow = '0 4px 10px #00000030';
+            d.style.pointerEvents = 'none';
+            const obj = new CSS2DObject(d);
+            obj.position.copy(pos);
+            return obj;
+        }
+        
+        // Posicionamento estratégico: todas as etiquetas em volta da máquina, nunca sobre os componentes principais
+        const labels = [
+            createLabel('📥 1. RECEPÇÃO · Moega', '#f7c873', new THREE.Vector3(2.0, 1.9, -0.2)),
+            createLabel('🔗 2. SEPARAÇÃO · Grelha', '#e0b05c', new THREE.Vector3(0.9, 1.8, 1.5)),
+            createLabel('⚙️ 3. DEBULHA · Cilindro rotativo', '#e0b05c', new THREE.Vector3(-0.7, 1.6, 1.4)),
+            createLabel('💨 4. LIMPEZA · Ventilador', '#e0b05c', new THREE.Vector3(-1.9, 1.2, 1.7)),
+            createLabel('🌀 5. REMOÇÃO · Impurezas leves', '#e0a341', new THREE.Vector3(-2.3, 1.5, -0.9)),
+            createLabel('🚜 TANDEM · Rodado flutuante', '#b9b06e', new THREE.Vector3(1.7, 0.7, 1.9)),
+            createLabel('🌾 GRÃOS · Tanque coletor', '#f3cb7a', new THREE.Vector3(-1.2, 0.9, -1.9)),
+            createLabel('🍂 RESÍDUOS · Saída lateral', '#c1a166', new THREE.Vector3(1.8, 0.8, 1.9)),
+            createLabel('🔧 ENGATE · Trator', '#c9aa6b', new THREE.Vector3(3.5, 0.6, 0.5))
+        ];
+        labels.forEach(l => scene.add(l));
+        
+        // --- Linhas de fluxo (ajuda visual do caminho do material) ---
+        function addFlowLine(points, color) {
+            const curve = new THREE.CatmullRomCurve3(points);
+            const tubeGeo = new THREE.TubeGeometry(curve, 64, 0.025, 6, false);
+            const tubeMat = new THREE.MeshStandardMaterial({ color: color, emissive: color, emissiveIntensity: 0.3, transparent: true, opacity: 0.55 });
+            const tube = new THREE.Mesh(tubeGeo, tubeMat);
+            tube.castShadow = false;
+            tube.receiveShadow = false;
+            scene.add(tube);
+            
+            // Pequenas esferas animadas ao longo da linha (serão animadas depois)
+            return curve;
+        }
+        
+        const flow1 = addFlowLine([
+            new THREE.Vector3(1.45, 1.5, 0), new THREE.Vector3(0.8, 1.2, 0), new THREE.Vector3(0.0, 1.0, 0)
+        ], 0xf7c873);
+        
+        const flow2 = addFlowLine([
+            new THREE.Vector3(0.0, 1.0, 0), new THREE.Vector3(-0.4, 0.95, 0.3), new THREE.Vector3(-0.9, 0.9, 0.6)
+        ], 0xe0b05c);
+        
+        const flow3 = addFlowLine([
+            new THREE.Vector3(-0.9, 0.9, 0.6), new THREE.Vector3(-1.3, 0.85, 0.2), new THREE.Vector3(-1.6, 0.9, -0.3)
+        ], 0xe0a341);
+        
+        // Esferas indicadoras de fluxo
+        const flowSpheres = [];
+        const sphereMat = new THREE.MeshStandardMaterial({ color: 0xffdd99, emissive: 0xcc8800, emissiveIntensity: 0.8 });
+        for (let i=0; i<3; i++) {
+            const s = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8), sphereMat);
+            s.castShadow = true;
+            scene.add(s);
+            flowSpheres.push({ mesh: s, curve: i===0 ? flow1 : (i===1 ? flow2 : flow3), offset: i*0.3 });
+        }
+        
+        // Animação
+        let time = 0;
+        function animate() {
+            requestAnimationFrame(animate);
+            time += 0.02;
+            
+            // Mecanismos
+            cylinder.rotation.x = time * 2.0;
+            teeth.forEach(t => {
+                const dx = t.position.x + 0.15;
+                const dy = t.position.y - 0.82;
+                const dz = t.position.z;
+                const ang = Math.atan2(dy, dx);
+                const rad = Math.hypot(dx, dy);
+                const newAng = ang + 0.04;
+                t.position.x = -0.15 + Math.cos(newAng)*rad;
+                t.position.y = 0.82 + Math.sin(newAng)*rad;
+                t.position.z = dz;
+            });
+            blades.rotation.z += 0.08;
+            
+            // Partículas
+            const pPos = parts.geometry.attributes.position.array;
+            for (let i=0; i<partCount; i++) {
+                pPos[i*3] += vels[i].x;
+                pPos[i*3+1] += vels[i].y;
+                pPos[i*3+2] += vels[i].z;
+                if (pPos[i*3] < -2.8 || pPos[i*3] > -0.6 || pPos[i*3+1] < 0.3 || pPos[i*3+1] > 1.8 || pPos[i*3+2] < -1.6 || pPos[i*3+2] > 0.6) {
+                    pPos[i*3] = -1.6 + (Math.random()-0.5)*0.8;
+                    pPos[i*3+1] = 0.9 + Math.random()*0.5;
+                    pPos[i*3+2] = -0.7 + (Math.random()-0.5)*1.2;
+                    vels[i] = { x: (Math.random()-0.5)*0.012, y: Math.random()*0.025+0.012, z: (Math.random()-0.5)*0.015-0.025 };
+                }
+            }
+            parts.geometry.attributes.position.needsUpdate = true;
+            
+            const cAttr = cPoints.geometry.attributes.position.array;
+            for (let i=0; i<cCount; i++) {
+                cAttr[i*3] += (Math.random()-0.5)*0.02;
+                cAttr[i*3+1] += 0.008;
+                cAttr[i*3+2] += (Math.random()-0.5)*0.02;
+                if (cAttr[i*3] > 2.5 || cAttr[i*3+1] > 1.2 || cAttr[i*3+2] > 2.5) {
+                    cAttr[i*3] = 1.25; cAttr[i*3+1] = 0.45; cAttr[i*3+2] = 1.25;
+                }
+            }
+            cPoints.geometry.attributes.position.needsUpdate = true;
+            
+            // Esferas de fluxo
+            flowSpheres.forEach((s, idx) => {
+                const tVal = (time * 0.15 + s.offset) % 1.0;
+                const pt = s.curve.getPoint(tVal);
+                s.mesh.position.copy(pt);
+            });
+            
+            tank.material.emissiveIntensity = 0.12 + Math.sin(time*2)*0.06;
+            
+            controls.update();
+            renderer.render(scene, camera);
+            labelRenderer.render(scene, camera);
+        }
+        animate();
+        
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            labelRenderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        
+        // Desativa autoRotate após interação do usuário
+        renderer.domElement.addEventListener('mousedown', () => controls.autoRotate = false);
+        renderer.domElement.addEventListener('mouseup', () => setTimeout(() => controls.autoRotate = true, 5000));
+        
+        console.log('MR-1 · Fluxo do mecanismo totalmente visível, textos ao redor.');
+    </script>
+</body>
+</html>
